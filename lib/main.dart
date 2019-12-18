@@ -1,8 +1,24 @@
+import 'package:bloc/bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:simple_bloc_login/blocs/loginBloc/bloc.dart';
+import 'package:simple_bloc_login/blocs/loginBloc/event.dart';
+import 'package:simple_bloc_login/blocs/loginBloc/state.dart';
 
-void main() => runApp(MyApp());
+void main() {
+  BlocSupervisor.delegate = SimpleBlocDelegate();
+  runApp(MyApp());
+}
+
+class SimpleBlocDelegate extends BlocDelegate {
+  @override
+  void onTransition(Bloc bloc, Transition transition) {
+    super.onTransition(bloc, transition);
+    print(transition);
+  }
+}
 
 class MyApp extends StatelessWidget {
   @override
@@ -52,86 +68,183 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  bool autoValidate;
+
+  final loginBloc = LoginBloc();
+  final formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    autoValidate = false;
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    loginBloc.close();
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          physics: BouncingScrollPhysics(),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(900),
-                child: CachedNetworkImage(
-                  placeholder: (context, url) => Image.asset(
-                    'assets/images/default.png',
-                    fit: BoxFit.cover,
-                  ),
-                  width: 200,
-                  imageUrl:
-                      'https://avatars1.githubusercontent.com/u/36977998?s=460&v=4',
-                ),
+      body: BlocListener(
+        bloc: loginBloc,
+        listener: (context, state) {
+          if (state is LoginFailure) {
+            Scaffold.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${state.error}'),
+                backgroundColor: colorScheme.error,
               ),
-              Form(
+            );
+          } else if (state is LoginSuccess) {
+            Scaffold.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Login Success'),
+                backgroundColor: colorScheme.primary,
+              ),
+            );
+          }
+        },
+        child: BlocBuilder(
+          bloc: loginBloc,
+          builder: (context, state) {
+            return Center(
+              child: SingleChildScrollView(
+                physics: BouncingScrollPhysics(),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    SizedBox(
-                      height: 68,
-                    ),
-                    TextField(
-                      decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.account_circle),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 14,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(900),
+                      child: CachedNetworkImage(
+                        placeholder: (context, url) => Image.asset(
+                          'assets/images/default.png',
+                          fit: BoxFit.cover,
                         ),
-                        labelText: 'Username',
-                        labelStyle: textTheme.body1.merge(
-                          TextStyle(color: colorScheme.onSurface),
-                        ),
+                        width: 200,
+                        imageUrl:
+                            'https://avatars1.githubusercontent.com/u/36977998?s=460&v=4',
                       ),
                     ),
-                    SizedBox(
-                      height: 22,
-                    ),
-                    TextField(
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.lock),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 14,
-                        ),
-                        labelText: 'Password',
-                        labelStyle: textTheme.body1.merge(
-                          TextStyle(color: colorScheme.onSurface),
-                        ),
+                    Form(
+                      key: formKey,
+                      autovalidate: autoValidate,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          SizedBox(
+                            height: 68,
+                          ),
+                          TextFormField(
+                            controller: _emailController,
+                            validator: (value) {
+                              if (value.isEmpty) {
+                                return 'Please enter your email!';
+                              } else if (!value.isEmail()) {
+                                return 'Please enter the valid email!';
+                              }
+                              return null;
+                            },
+                            decoration: InputDecoration(
+                              prefixIcon: Icon(Icons.alternate_email),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 14,
+                              ),
+                              labelText: 'Email',
+                              labelStyle: textTheme.body1.merge(
+                                TextStyle(color: colorScheme.onSurface),
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            height: 22,
+                          ),
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: true,
+                            validator: (value) {
+                              if (value.isEmpty) {
+                                return 'Please enter your password!';
+                              } else if (!value.isPassword()) {
+                                return 'Please enter the valid password!';
+                              }
+                              return null;
+                            },
+                            decoration: InputDecoration(
+                              prefixIcon: Icon(Icons.lock),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 14,
+                              ),
+                              labelText: 'Password',
+                              labelStyle: textTheme.body1.merge(
+                                TextStyle(color: colorScheme.onSurface),
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            height: 43,
+                          ),
+                          FlatButton(
+                            child: state is LoginLoading
+                                ? SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1.0,
+                                      valueColor:
+                                          new AlwaysStoppedAnimation<Color>(
+                                              Colors.white),
+                                    ),
+                                  )
+                                : Text(
+                                    'Login',
+                                    style: textTheme.button.merge(
+                                      TextStyle(color: colorScheme.onPrimary),
+                                    ),
+                                  ),
+                            disabledColor: colorScheme.onSurface,
+                            onPressed: state is LoginLoading ? null : () {
+                              if (formKey.currentState.validate()) {
+                                loginBloc.add(Login(_emailController.text,
+                                    _passwordController.text));
+                              }
+                              setState(() {
+                                autoValidate = true;
+                              });
+                            },
+                            color: colorScheme.primary,
+                          )
+                        ],
                       ),
                     ),
-                    SizedBox(
-                      height: 43,
-                    ),
-                    FlatButton(
-                      child: Text(
-                        'Login',
-                        style: textTheme.button.merge(
-                          TextStyle(color: colorScheme.onPrimary),
-                        ),
-                      ),
-                      onPressed: () {},
-                      color: colorScheme.primary,
-                    )
                   ],
                 ),
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
+  }
+}
+
+extension StringValidator on String {
+  bool isEmail() {
+    return RegExp(
+            r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
+        .hasMatch(this);
+  }
+
+  bool isPassword() {
+    return this.length >
+        6; //RegExp(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])(?=.{6,})").hasMatch(this);
   }
 }
