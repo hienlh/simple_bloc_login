@@ -69,22 +69,30 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   bool autoValidate;
+  bool isValidated;
 
   final loginBloc = LoginBloc();
   final formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     autoValidate = false;
+    isValidated = false;
   }
 
   @override
   void dispose() {
     super.dispose();
     loginBloc.close();
+  }
+
+  _checkValidate() {
+    setState(() {
+      isValidated = formKey.currentState.validate();
+    });
   }
 
   @override
@@ -142,7 +150,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             height: 68,
                           ),
                           TextFormField(
-                            controller: _emailController,
+                            controller: emailController,
                             validator: (value) {
                               if (value.isEmpty) {
                                 return 'Please enter your email!';
@@ -150,6 +158,14 @@ class _MyHomePageState extends State<MyHomePage> {
                                 return 'Please enter the valid email!';
                               }
                               return null;
+                            },
+                            onChanged: (_) {
+                              _checkValidate();
+                            },
+                            onTap: () {
+                              setState(() {
+                                autoValidate = true;
+                              });
                             },
                             decoration: InputDecoration(
                               prefixIcon: Icon(Icons.alternate_email),
@@ -167,7 +183,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             height: 22,
                           ),
                           TextFormField(
-                            controller: _passwordController,
+                            controller: passwordController,
                             obscureText: true,
                             validator: (value) {
                               if (value.isEmpty) {
@@ -176,6 +192,14 @@ class _MyHomePageState extends State<MyHomePage> {
                                 return 'Please enter the valid password!';
                               }
                               return null;
+                            },
+                            onChanged: (_) {
+                              _checkValidate();
+                            },
+                            onTap: () {
+                              setState(() {
+                                autoValidate = true;
+                              });
                             },
                             decoration: InputDecoration(
                               prefixIcon: Icon(Icons.lock),
@@ -211,15 +235,14 @@ class _MyHomePageState extends State<MyHomePage> {
                                     ),
                                   ),
                             disabledColor: colorScheme.onSurface,
-                            onPressed: state is LoginLoading ? null : () {
-                              if (formKey.currentState.validate()) {
-                                loginBloc.add(Login(_emailController.text,
-                                    _passwordController.text));
-                              }
-                              setState(() {
-                                autoValidate = true;
-                              });
-                            },
+                            onPressed: state is LoginLoading || !isValidated
+                                ? null
+                                : () {
+                                    if (formKey.currentState.validate()) {
+                                      loginBloc.add(Login(emailController.text,
+                                          passwordController.text));
+                                    }
+                                  },
                             color: colorScheme.primary,
                           )
                         ],
